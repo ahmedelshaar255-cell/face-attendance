@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b1220">
+<title>تحضير بالوجه</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b1220; --panel:#121a2b; --panel2:#1a2438; --line:#26324a;
+  --text:#eef2f8; --muted:#93a0b8; --accent:#e30613; --ok:#17b26a; --warn:#f5a524; --err:#ef4444; --blue:#3b82f6;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:'Cairo',system-ui,sans-serif;overflow:hidden;user-select:none}
+button,input,select{font-family:inherit;font-size:inherit}
+button{cursor:pointer;border:0;border-radius:14px;padding:14px 22px;font-weight:700;color:#fff;background:var(--panel2)}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.5}
+.btn-ok{background:var(--ok)} .btn-blue{background:var(--blue)} .btn-red{background:var(--err)} .btn-ghost{background:transparent;border:1px solid var(--line)}
+
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)}
+
+#topbar{position:fixed;top:0;left:0;right:0;padding:16px 22px;display:flex;justify-content:space-between;align-items:flex-start;
+  background:linear-gradient(#000c,#0000);z-index:5}
+#clock{font-size:clamp(34px,6vw,64px);font-weight:800;line-height:1;letter-spacing:1px;direction:ltr}
+#date{color:#cfd6e4;font-size:clamp(14px,2vw,20px);margin-top:6px}
+#brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px}
+#brand .dot{width:12px;height:12px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px #17b26a33}
+#brand .dot.off{background:var(--warn);box-shadow:0 0 0 4px #f5a52433}
+#gear{width:52px;height:52px;border-radius:50%;padding:0;background:#ffffff14;font-size:24px;display:flex;align-items:center;justify-content:center}
+
+#hint{position:fixed;bottom:0;left:0;right:0;padding:26px 22px 34px;text-align:center;background:linear-gradient(#0000,#000d);z-index:5}
+#hint .big{font-size:clamp(22px,3.6vw,36px);font-weight:800}
+#hint .small{color:#cfd6e4;font-size:clamp(14px,2vw,18px);margin-top:4px}
+#syncinfo{position:fixed;bottom:10px;left:14px;color:#9aa6bd;font-size:13px;z-index:6;direction:rtl}
+
+/* Confirm / result cards */
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0009;z-index:20;padding:20px}
+.modal.show{display:flex}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:28px;width:min(560px,100%);text-align:center;box-shadow:0 30px 80px #000a}
+.card img{width:140px;height:140px;border-radius:50%;object-fit:cover;border:4px solid var(--line)}
+.card .name{font-size:clamp(26px,4vw,38px);font-weight:800;margin-top:12px}
+.card .sub{color:var(--muted);font-size:18px}
+.typepill{display:inline-block;margin-top:14px;padding:8px 22px;border-radius:999px;font-weight:800;font-size:24px}
+.typepill.in{background:#17b26a22;color:#3ddc97} .typepill.out{background:#3b82f622;color:#7fb0ff}
+.card .row{display:flex;gap:12px;margin-top:22px}
+.card .row button{flex:1;font-size:20px;padding:18px}
+.countbar{height:6px;background:var(--panel2);border-radius:99px;margin-top:20px;overflow:hidden}
+.countbar i{display:block;height:100%;width:100%;background:var(--ok);transform-origin:right}
+.result .icon{width:110px;height:110px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:62px;font-weight:800}
+.result.ok .icon{background:#17b26a22;color:#3ddc97} .result.err .icon{background:#ef444422;color:#ff7b7b} .result.warn .icon{background:#f5a52422;color:#ffc861}
+
+/* Admin */
+#admin{position:fixed;z-index:30;background:var(--panel);border-inline-start:1px solid var(--line);display:none;flex-direction:column;
+  top:0;bottom:0;right:0;width:min(520px,52vw)}
+#admin.show{display:flex}
+@media (orientation:portrait){#admin{top:auto;left:0;width:100%;height:62vh;border-inline-start:0;border-top:1px solid var(--line);border-radius:24px 24px 0 0}}
+#admin header{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line)}
+#admin header h2{margin:0;font-size:20px}
+.tabs{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{padding:10px 14px;font-size:15px;background:transparent;color:var(--muted);border-radius:10px;white-space:nowrap}
+.tabs button.on{background:var(--panel2);color:var(--text)}
+.pane{display:none;padding:16px 18px;overflow:auto;flex:1}
+.pane.on{display:block}
+label{display:block;color:var(--muted);font-size:14px;margin:12px 0 6px}
+input,select{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:17px;user-select:text}
+.help{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.6}
+.progress{display:flex;gap:8px;margin:16px 0}
+.progress span{flex:1;height:10px;border-radius:99px;background:var(--panel2)}
+.progress span.on{background:var(--ok)}
+.emp{display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+.emp b{display:block} .emp small{color:var(--muted)}
+.emp button{padding:8px 14px;font-size:14px}
+.stat{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}
+.msg{padding:12px;border-radius:12px;margin-top:12px;font-size:15px;display:none}
+.msg.show{display:block} .msg.ok{background:#17b26a22;color:#3ddc97} .msg.err{background:#ef444422;color:#ff9b9b} .msg.warn{background:#f5a52422;color:#ffc861}
+.check{display:flex;align-items:center;gap:10px;margin-top:14px}
+.check input{width:24px;height:24px}
+
+#pinpad .card{width:min(380px,100%)}
+#pinDots{display:flex;justify-content:center;gap:12px;margin:16px 0}
+#pinDots i{width:16px;height:16px;border-radius:50%;background:var(--panel2)}
+#pinDots i.on{background:var(--text)}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;direction:ltr}
+.keys button{font-size:26px;padding:16px}
+
+#selfBtn{position:fixed;bottom:22px;right:22px;z-index:7;background:#ffffff1f;border:1px solid #ffffff33;font-size:17px;padding:14px 20px;backdrop-filter:blur(6px)}
+@media (max-width:700px){#selfBtn{bottom:auto;top:100px}}
+.codebox{font-size:44px;font-weight:800;letter-spacing:6px;direction:ltr;margin:14px auto;padding:8px;border-bottom:3px solid var(--line);min-height:70px;width:80%}
+#selfModal.capture{align-items:flex-end;background:transparent}
+#selfModal.capture .card{padding:18px 22px}
+.found{margin-top:8px;font-size:15px;min-height:22px}
+.found.ok{color:#3ddc97} .found.err{color:#ffc861}
+.badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;margin-inline-start:6px}
+.badge.yes{background:#17b26a22;color:#3ddc97} .badge.no{background:#ef444422;color:#ff9b9b}
+#loading{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:20px}
+.spinner{width:56px;height:56px;border:5px solid var(--panel2);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div><div id="loadingText" style="font-size:20px;font-weight:700">جاري تحميل البرنامج...</div><div class="help" id="loadingSub"></div></div>
+
+<div id="stage">
+  <video id="video" autoplay muted playsinline></video>
+  <canvas id="overlay"></canvas>
+</div>
+
+<div id="topbar">
+  <div>
+    <div id="clock">--:--</div>
+    <div id="date"></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div id="brand"><span class="dot" id="netDot"></span><span id="deviceLabel">تحضير بالوجه</span></div>
+    <button id="gear" title="الإدارة">⚙</button>
+  </div>
+</div>
+
+<div id="hint"><div class="big" id="hintBig">قرّب وشّك من الكاميرا</div><div class="small" id="hintSmall">بص للكاميرا مباشرة وخلّي وشّك في النص</div></div>
+<div id="syncinfo"></div>
+<button id="selfBtn">أول مرة؟ سجّل وشّك</button>
+
+<!-- Self enrollment: code first, then face -->
+<div class="modal" id="selfModal">
+  <div class="card" id="selfCard">
+    <div id="self-code">
+      <div style="font-size:24px;font-weight:800">تسجيل الوش لأول مرة</div>
+      <div class="sub" style="margin-top:4px">اكتب كود الموظف بتاعك</div>
+      <div id="selfCode" class="codebox">&nbsp;</div>
+      <div class="keys" id="selfKeys"></div>
+      <div class="msg" id="selfMsg"></div>
+      <button class="btn-ghost" style="width:100%;margin-top:12px" data-selfcancel>إلغاء</button>
+    </div>
+    <div id="self-confirm" style="display:none">
+      <div class="sub">الكود: <b id="selfCId"></b></div>
+      <div class="name" id="selfName"></div>
+      <div class="sub" id="selfDept"></div>
+      <div style="font-size:20px;margin-top:16px">ده إنت؟</div>
+      <div class="help" style="font-size:15px">بعد ما تدوس "أيوه" بص للكاميرا وحرّك راسك سنة بسيطة لحد ما الشريط يكمل</div>
+      <div class="row">
+        <button class="btn-ok" id="selfYes">أيوه، صوّرني</button>
+        <button class="btn-ghost" data-selfcancel>لأ</button>
+      </div>
+    </div>
+    <div id="self-capture" style="display:none">
+      <div class="name" id="selfCapName" style="margin-top:0"></div>
+      <div class="progress" id="selfProg"></div>
+      <div class="msg show warn" id="selfCapMsg">بص للكاميرا</div>
+      <button class="btn-ghost" style="width:100%;margin-top:12px" data-selfcancel>إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm -->
+<div class="modal" id="confirmModal">
+  <div class="card">
+    <img id="cImg" alt="">
+    <div class="name" id="cName"></div>
+    <div class="sub" id="cId"></div>
+    <div class="typepill" id="cType"></div>
+    <div class="countbar" id="cBarWrap"><i id="cBar"></i></div>
+    <div class="row">
+      <button class="btn-ok" id="cSave">تأكيد</button>
+      <button class="btn-blue" id="cSwitch">تغيير</button>
+      <button class="btn-ghost" id="cCancel">مش أنا</button>
+    </div>
+  </div>
+</div>
+
+<!-- Result -->
+<div class="modal" id="resultModal">
+  <div class="card result" id="rCard">
+    <div class="icon" id="rIcon">✓</div>
+    <div class="name" id="rTitle"></div>
+    <div class="sub" id="rSub" style="margin-top:6px"></div>
+  </div>
+</div>
+
+<!-- PIN -->
+<div class="modal" id="pinpad">
+  <div class="card">
+    <div style="font-size:22px;font-weight:800">رمز الإدارة</div>
+    <div id="pinDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="keys" id="keys"></div>
+    <button class="btn-ghost" style="width:100%;margin-top:12px" id="pinCancel">إلغاء</button>
+  </div>
+</div>
+
+<!-- Admin -->
+<div id="admin">
+  <header><h2>لوحة الإدارة</h2><button class="btn-ghost" id="adminClose">إغلاق ✕</button></header>
+  <div class="tabs">
+    <button data-tab="enroll" class="on">تسجيل موظف</button>
+    <button data-tab="list">الموظفين</button>
+    <button data-tab="sync">المزامنة</button>
+    <button data-tab="settings">الإعدادات</button>
+  </div>
+
+  <div class="pane on" id="pane-enroll">
+    <label>كود الموظف</label>
+    <input id="eId" inputmode="numeric" placeholder="مثال: 1045">
+    <div class="found" id="eFound"></div>
+    <div id="eNameWrap" style="display:none">
+      <label>اسم الموظف (الكود مش في الكشف — هيتضاف)</label>
+      <input id="eName" placeholder="الاسم بالكامل">
+    </div>
+    <div class="progress" id="eProg"></div>
+    <div class="help" id="eHelp">الموظف يقف قدام التابلت ويبص للكاميرا. أثناء التصوير يحرّك راسه سنة بسيطة يمين وشمال وفوق وتحت.</div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn-ok" id="eStart" style="flex:1">ابدأ التصوير</button>
+      <button class="btn-ghost" id="eStop">إلغاء</button>
+    </div>
+    <div class="msg" id="eMsg"></div>
+  </div>
+
+  <div class="pane" id="pane-list">
+    <input id="lSearch" placeholder="بحث بالاسم أو الكود">
+    <select id="lFilter" style="margin-top:8px">
+      <option value="all">الكل</option>
+      <option value="no">لسه ما سجلوش وشهم</option>
+      <option value="yes">سجلوا وشهم</option>
+    </select>
+    <div class="help" id="lCount" style="margin:10px 0"></div>
+    <div id="lItems"></div>
+  </div>
+
+  <div class="pane" id="pane-sync">
+    <div class="stat"><span>حالة الاتصال بالشيت</span><b id="sConn">—</b></div>
+    <div class="stat"><span>الموظفين في الكشف</span><b id="sEmp">0</b></div>
+    <div class="stat"><span>سجلوا وشهم</span><b id="sEnr">0</b></div>
+    <div class="stat"><span>تسجيلات مستنية تترفع</span><b id="sQueue">0</b></div>
+    <div class="stat"><span>آخر مزامنة</span><b id="sLast">—</b></div>
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn-blue" id="sNow">زامن دلوقتي</button>
+      <button class="btn-ghost" id="sReload">حمّل الموظفين من الشيت</button>
+    </div>
+    <div class="msg" id="sMsg"></div>
+  </div>
+
+  <div class="pane" id="pane-settings">
+    <label>رابط الـ Apps Script (Web App URL)</label>
+    <input id="stUrl" dir="ltr" placeholder="https://script.google.com/macros/s/.../exec">
+    <label>كلمة السر (نفس TOKEN اللي في الـ Apps Script)</label>
+    <input id="stToken" dir="ltr">
+    <label>اسم الجهاز</label>
+    <input id="stDevice" placeholder="مثال: تابلت الاستقبال">
+    <label>رمز الإدارة الجديد (سيبه فاضي لو مش عايز تغيّره)</label>
+    <input id="stPin" inputmode="numeric" maxlength="6" placeholder="6 أرقام">
+    <label>دقة التعرّف</label>
+    <select id="stThreshold">
+      <option value="0.40">صارمة جداً (أقل غلط، ممكن يطلب يعيد)</option>
+      <option value="0.45">متوازنة (مُقترحة)</option>
+      <option value="0.50">مرنة (أسرع، احتمال غلط أعلى)</option>
+    </select>
+    <label>التسجيل التلقائي بعد (ثواني)</label>
+    <select id="stConfirm">
+      <option value="0">لا — الموظف لازم يدوس تأكيد</option>
+      <option value="2">2 ثانية</option>
+      <option value="3">3 ثواني (مُقترح)</option>
+      <option value="5">5 ثواني</option>
+    </select>
+    <label>منع التكرار لنفس الموظف خلال (دقائق)</label>
+    <input id="stCooldown" inputmode="numeric">
+    <div class="check"><input type="checkbox" id="stLive"><span>تأكيد إنه شخص حقيقي مش صورة (يطلب من الموظف يحرّك راسه)</span></div>
+    <div class="check"><input type="checkbox" id="stSelf"><span>زرار "سجّل وشّك" على الشاشة (الموظف يسجل وشه بنفسه بالكود — مرة واحدة بس لكل كود)</span></div>
+    <div class="check"><input type="checkbox" id="stPhoto"><span>حفظ صورة مع كل تسجيل (للمراجعة)</span></div>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button class="btn-ok" id="stSave" style="flex:1">حفظ</button>
+      <button class="btn-ghost" id="stTest">اختبار الاتصال</button>
+    </div>
+    <div class="msg" id="stMsg"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
+<script>if(!window.faceapi) document.write('<script src="face-api.js"><\/script>');</script>
+<script>
+'use strict';
+/* =================== Settings =================== */
+const DEFAULTS = { scriptUrl:'', token:'', pin:'123456', deviceName:'تابلت 1', threshold:0.45, confirmSec:3, cooldownMin:2, liveness:false, savePhoto:true, selfEnroll:true };
+function loadSettings(){ try{ return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem('fa_settings')||'{}')); }catch(e){ return Object.assign({}, DEFAULTS); } }
+function saveSettings(s){ try{ localStorage.setItem('fa_settings', JSON.stringify(s)); }catch(e){} }
+let S = loadSettings();
+(function applySetupLink(){
+  const m = location.hash.match(/setup=([^&]+)/);
+  if(!m) return;
+  try{
+    const cfg = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1]).replace(/-/g,'+').replace(/_/g,'/')))));
+    if(cfg.u) S.scriptUrl = cfg.u;
+    if(cfg.t) S.token = cfg.t;
+    if(cfg.d) S.deviceName = cfg.d;
+    if(cfg.p) S.pin = String(cfg.p);
+    saveSettings(S);
+  }catch(e){ console.warn('bad setup link', e); }
+  history.replaceState(null, '', location.pathname + location.search);  // don't keep the secret in the address bar
+})();
+
+const SAMPLES_PER_EMPLOYEE = 5;
+const MIN_FACE_PX = 110;        // smallest face width (in video pixels) we accept
+const STABLE_FRAMES = 3;        // consecutive frames that must agree before we accept a match
+const MARGIN = 0.04;            // best match must beat the next different person by this much
+const TYPE_IN = 'حضور', TYPE_OUT = 'انصراف';
+
+/* =================== IndexedDB (cache + offline queue) =================== */
+const DB = (() => {
+  let dbp;
+  function open(){ if(!dbp) dbp = new Promise((res,rej)=>{ const r = indexedDB.open('face_attendance',1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); return dbp; }
+  async function get(k){ const db = await open(); return new Promise((res,rej)=>{ const t=db.transaction('kv').objectStore('kv').get(k); t.onsuccess=()=>res(t.result); t.onerror=()=>rej(t.error); }); }
+  async function set(k,v){ const db = await open(); return new Promise((res,rej)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(v,k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+  return { get, set };
+})();
+
+/* =================== State =================== */
+let employees = [];            // roster: [{id,name,dept,descriptors:[Float32Array]}] (descriptors empty = face not registered yet)
+let queue = [];                // pending punch records
+let todayPunches = {};         // id -> {type, ts}  (latest punch today)
+let todayKey = dayKey(new Date());
+let mode = 'loading';          // scan | confirm | result | enroll | admin
+let lastSync = null, online = false;
+
+const $ = id => document.getElementById(id);
+const video = $('video'), overlay = $('overlay');
+
+function dayKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function fmtTime(d){ return d.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}); }
+
+/* =================== Clock =================== */
+function tick(){
+  const d = new Date();
+  $('clock').textContent = d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  $('date').textContent = d.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const k = dayKey(d); if(k !== todayKey){ todayKey = k; todayPunches = {}; DB.set('today',{day:todayKey,map:{}}); }
+}
+setInterval(tick, 1000); tick();
+
+/* =================== Sounds =================== */
+let actx;
+function beep(ok=true){
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    const notes = ok ? [880,1320] : [300,220];
+    notes.forEach((f,i)=>{ const o=actx.createOscillator(), g=actx.createGain(); o.frequency.value=f; o.type='sine';
+      g.gain.setValueAtTime(0.0001, actx.currentTime+i*0.14); g.gain.exponentialRampToValueAtTime(0.3, actx.currentTime+i*0.14+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+i*0.14+0.13);
+      o.connect(g).connect(actx.destination); o.start(actx.currentTime+i*0.14); o.stop(actx.currentTime+i*0.14+0.15); });
+  }catch(e){}
+}
+
+/* =================== Server API =================== */
+async function api(action, payload){
+  if(!S.scriptUrl) throw new Error('لسه مفيش رابط Apps Script في الإعدادات');
+  let r;
+  if(payload === undefined){
+    const u = S.scriptUrl + (S.scriptUrl.includes('?')?'&':'?') + 'action='+encodeURIComponent(action)+'&token='+encodeURIComponent(S.token)+'&day='+todayKey;
+    r = await fetch(u, {method:'GET', redirect:'follow'});
+  } else {
+    // text/plain keeps it a "simple" CORS request, which Apps Script accepts
+    r = await fetch(S.scriptUrl, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(Object.assign({action, token:S.token}, payload))});
+  }
+  const txt = await r.text();
+  let j; try{ j = JSON.parse(txt); }catch(e){ throw new Error('الرد من الـ Apps Script مش مفهوم — اتأكد إن النشر "Anyone" والرابط بينتهي بـ /exec'); }
+  if(!j.ok) throw new Error(j.error === 'unauthorized' ? 'كلمة السر غلط (TOKEN)' : (j.error||'خطأ غير معروف'));
+  return j;
+}
+
+function toEmp(e){ return { id:String(e.id), name:e.name||'', dept:e.dept||'', descriptors:(e.descriptors||[]).map(d=>new Float32Array(d)) }; }
+function plainEmp(x){ return {id:x.id, name:x.name, dept:x.dept, descriptors:x.descriptors.map(d=>Array.from(d))}; }
+function enrolledCount(){ return employees.filter(e=>e.descriptors.length).length; }
+function findEmp(id){ id = String(id).trim(); return employees.find(e=>e.id===id) || employees.find(e=>e.id.replace(/^0+/,'')===id.replace(/^0+/,'')); }
+async function saveRosterCache(){ await DB.set('employees', employees.map(plainEmp)); }
+
+async function loadEmployees(fromServer=true){
+  if(fromServer && S.scriptUrl){
+    try{
+      const j = await api('employees');
+      employees = j.employees.map(toEmp);
+      await DB.set('employees', j.employees);
+      setOnline(true);
+      return true;
+    }catch(e){ console.warn('employees fetch failed', e); setOnline(false); }
+  }
+  const cached = await DB.get('employees');
+  if(cached) employees = cached.map(toEmp);
+  return false;
+}
+
+async function loadToday(){
+  const t = await DB.get('today');
+  todayPunches = (t && t.day === todayKey) ? t.map : {};
+  if(!S.scriptUrl) return;
+  try{
+    const j = await api('today');
+    for(const p of j.punches){
+      const cur = todayPunches[p.id];
+      if(!cur || new Date(p.ts) > new Date(cur.ts)) todayPunches[p.id] = {type:p.type, ts:p.ts};
+    }
+    await DB.set('today',{day:todayKey,map:todayPunches});
+  }catch(e){ console.warn('today fetch failed', e); }
+}
+
+let flushing = false;
+async function flushQueue(){
+  if(flushing || !queue.length || !S.scriptUrl) { updateSyncInfo(); return; }
+  flushing = true;
+  try{
+    while(queue.length){
+      const batch = queue.slice(0, 10);
+      const j = await api('punch', {records: batch});
+      const saved = new Set(j.saved);
+      queue = queue.filter(r => !saved.has(r.uid));
+      await DB.set('queue', queue);
+    }
+    lastSync = new Date(); setOnline(true);
+  }catch(e){ console.warn('flush failed', e); setOnline(false); }
+  flushing = false; updateSyncInfo();
+}
+
+function setOnline(v){ online = v; $('netDot').classList.toggle('off', !v); updateSyncInfo(); }
+function updateSyncInfo(){
+  $('syncinfo').textContent = (queue.length ? `⏳ ${queue.length} تسجيل مستني يترفع` : '') ;
+  $('sConn').textContent = !S.scriptUrl ? 'مش متظبط' : (online ? 'متصل ✓' : 'مش متصل');
+  $('sEmp').textContent = employees.length;
+  $('sEnr').textContent = enrolledCount();
+  $('selfBtn').style.display = (S.selfEnroll && S.scriptUrl && mode!=='admin') ? '' : 'none';
+  $('sQueue').textContent = queue.length;
+  $('sLast').textContent = lastSync ? fmtTime(lastSync) : '—';
+}
+
+/* =================== Camera & models =================== */
+async function startCamera(){
+  const stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:'user', width:{ideal:640}, height:{ideal:480}}});
+  video.srcObject = stream;
+  await new Promise(r => video.onloadedmetadata = r);
+  await video.play();
+}
+const detOpts = () => new faceapi.TinyFaceDetectorOptions({inputSize:320, scoreThreshold:0.5});
+
+async function detectLargest(){
+  if(video.readyState < 2) return null;
+  const res = await faceapi.detectAllFaces(video, detOpts()).withFaceLandmarks().withFaceDescriptors();
+  if(!res.length) return null;
+  res.sort((a,b)=> b.detection.box.width - a.detection.box.width);
+  return { best: res[0], count: res.length };
+}
+
+function drawBox(det, color){
+  const ctx = overlay.getContext('2d');
+  const vw = video.videoWidth, vh = video.videoHeight;
+  overlay.width = overlay.clientWidth; overlay.height = overlay.clientHeight;
+  ctx.clearRect(0,0,overlay.width,overlay.height);
+  if(!det) return;
+  // map video coords -> object-fit:cover screen coords
+  const scale = Math.max(overlay.width/vw, overlay.height/vh);
+  const ox = (overlay.width - vw*scale)/2, oy = (overlay.height - vh*scale)/2;
+  const b = det.detection.box;
+  const x = ox + b.x*scale, y = oy + b.y*scale, w = b.width*scale, h = b.height*scale;
+  ctx.lineWidth = 5; ctx.strokeStyle = color;
+  const r = 24; ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.stroke();
+}
+
+function snapshot(det, size=220){
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  let sx=0, sy=0, sw=video.videoWidth, sh=video.videoHeight;
+  if(det){ const b = det.detection.box, pad = b.width*0.45, s = b.width + pad*2;
+    sx = Math.max(0, b.x - pad); sy = Math.max(0, b.y - pad*1.2); sw = sh = Math.min(s, video.videoWidth - sx, video.videoHeight - sy); }
+  ctx.translate(size,0); ctx.scale(-1,1);
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, size, size);
+  return c.toDataURL('image/jpeg', 0.75);
+}
+
+function yaw(lm){
+  const p = lm.positions, avg = arr => arr.reduce((a,q)=>({x:a.x+q.x/arr.length,y:a.y+q.y/arr.length}),{x:0,y:0});
+  const le = avg(p.slice(36,42)), re = avg(p.slice(42,48)), nose = p[30];
+  const d = Math.hypot(re.x-le.x, re.y-le.y) || 1;
+  return (nose.x - (le.x+re.x)/2) / d;
+}
+
+/* =================== Matching =================== */
+function match(desc){
+  let best = null, second = null;
+  for(const e of employees){
+    let m = Infinity;
+    for(const d of e.descriptors){ const dist = faceapi.euclideanDistance(desc, d); if(dist < m) m = dist; }
+    if(!best || m < best.dist){ second = best; best = {emp:e, dist:m}; }
+    else if(!second || m < second.dist){ second = {emp:e, dist:m}; }
+  }
+  if(!best || best.dist > S.threshold) return null;
+  if(second && second.dist - best.dist < MARGIN) return {ambiguous:true};
+  return best;
+}
+
+/* =================== Scan loop =================== */
+let streak = {id:null, n:0, yawMin:9, yawMax:-9, dists:[]};
+const recent = {}; // id -> timestamp of last successful punch on this device
+
+function setHint(big, small=''){ $('hintBig').textContent = big; $('hintSmall').textContent = small; }
+
+async function loop(){
+  try{
+    if(mode === 'scan' || mode === 'enroll'){
+      const r = await detectLargest();
+      if(mode === 'scan') await onScanFrame(r);
+      else if(mode === 'enroll') await onEnrollFrame(r);
+    } else drawBox(null);
+  }catch(e){ console.error(e); }
+  setTimeout(loop, 120);
+}
+
+async function onScanFrame(r){
+  if(!enrolledCount()){ drawBox(r && r.best, '#f5a524'); setHint('مفيش حد مسجّل وشّه لسه', S.selfEnroll ? 'دوس "أول مرة؟ سجّل وشّك" واكتب الكود بتاعك' : 'الـ HR يسجل الموظفين من الإدارة ⚙'); return; }
+  if(!r){ drawBox(null); streak.n = 0; setHint('قرّب وشّك من الكاميرا','بص للكاميرا مباشرة وخلّي وشّك في النص'); return; }
+  const det = r.best;
+  if(det.detection.box.width < MIN_FACE_PX){ drawBox(det,'#f5a524'); streak.n=0; setHint('قرّب شوية','وشّك بعيد عن الكاميرا'); return; }
+  const m = match(det.descriptor);
+  if(!m){ drawBox(det,'#ef4444'); streak.n=0; setHint('مش قادر أتعرّف عليك', S.selfEnroll ? 'لو أول مرة، دوس "سجّل وشّك" واكتب الكود بتاعك' : 'لو إنت مش متسجل كلّم الـ HR'); return; }
+  if(m.ambiguous){ drawBox(det,'#f5a524'); streak.n=0; setHint('ثبّت وشّك','بص للكاميرا مباشرة'); return; }
+
+  if(streak.id !== m.emp.id){ streak = {id:m.emp.id, n:0, yawMin:9, yawMax:-9, dists:[]}; }
+  streak.n++; streak.dists.push(m.dist);
+  const y = yaw(det.landmarks); streak.yawMin = Math.min(streak.yawMin, y); streak.yawMax = Math.max(streak.yawMax, y);
+  drawBox(det,'#17b26a');
+
+  if(streak.n < STABLE_FRAMES){ setHint('ثانية واحدة...', m.emp.name); return; }
+  if(S.liveness && (streak.yawMax - streak.yawMin) < 0.22){ setHint('حرّك راسك سنة يمين وشمال', 'للتأكد إنك شخص حقيقي'); return; }
+
+  const last = recent[m.emp.id];
+  if(last && Date.now() - last < S.cooldownMin*60000){
+    setHint('✓ ' + m.emp.name + ' — إنت متسجّل خلاص', 'تقدر تتفضل');
+    return;
+  }
+  const avgDist = streak.dists.reduce((a,b)=>a+b,0)/streak.dists.length;
+  streak = {id:null, n:0, yawMin:9, yawMax:-9, dists:[]};
+  openConfirm(m.emp, avgDist, snapshot(det));
+}
+
+/* =================== Confirm =================== */
+let pending = null, confirmTimer = null, barAnim = null;
+function suggestType(id){ const t = todayPunches[id]; return (t && t.type === TYPE_IN) ? TYPE_OUT : TYPE_IN; }
+function renderType(){ const el = $('cType'); el.textContent = pending.type; el.className = 'typepill ' + (pending.type===TYPE_IN?'in':'out');
+  $('cSwitch').textContent = 'غيّر لـ ' + (pending.type===TYPE_IN?TYPE_OUT:TYPE_IN); }
+
+function openConfirm(emp, dist, photo){
+  mode = 'confirm';
+  pending = {emp, dist, photo, type: suggestType(emp.id)};
+  $('cImg').src = photo; $('cName').textContent = emp.name; $('cId').textContent = 'كود: ' + emp.id;
+  renderType();
+  $('confirmModal').classList.add('show');
+  startCountdown();
+}
+function startCountdown(){
+  clearTimeout(confirmTimer); if(barAnim) barAnim.cancel();
+  const secs = Number(S.confirmSec);
+  $('cBarWrap').style.display = secs ? 'block' : 'none';
+  if(secs){
+    barAnim = $('cBar').animate([{transform:'scaleX(1)'},{transform:'scaleX(0)'}], {duration:secs*1000, fill:'forwards'});
+    confirmTimer = setTimeout(savePunch, secs*1000);
+  } else {
+    confirmTimer = setTimeout(cancelConfirm, 15000); // nobody tapped
+  }
+}
+function closeConfirm(){ clearTimeout(confirmTimer); if(barAnim) barAnim.cancel(); $('confirmModal').classList.remove('show'); }
+function cancelConfirm(){ closeConfirm(); pending = null; mode = 'scan'; }
+
+async function savePunch(){
+  if(!pending) return;
+  const p = pending; pending = null; closeConfirm();
+  const now = new Date();
+  const rec = { uid: uid(), ts: now.toISOString(), id: p.emp.id, name: p.emp.name, type: p.type,
+    score: Math.round((1 - p.dist) * 100), device: S.deviceName, photo: S.savePhoto ? p.photo : '' };
+  queue.push(rec); await DB.set('queue', queue);
+  todayPunches[p.emp.id] = {type:p.type, ts:rec.ts}; await DB.set('today',{day:todayKey,map:todayPunches});
+  recent[p.emp.id] = Date.now();
+  beep(true);
+  mode = 'result';
+  showResult('ok','✓', p.emp.name, `تم تسجيل ${p.type} — ${fmtTime(now)}`, 2200);
+  flushQueue();
+}
+
+function showResult(kind, icon, title, sub, ms){
+  $('rCard').className = 'card result ' + kind; $('rIcon').textContent = icon; $('rTitle').textContent = title; $('rSub').textContent = sub;
+  $('resultModal').classList.add('show');
+  setTimeout(()=>{ $('resultModal').classList.remove('show'); if(mode==='result') mode='scan'; }, ms);
+}
+
+$('cSave').onclick = savePunch;
+$('cCancel').onclick = () => { beep(false); cancelConfirm(); };
+$('cSwitch').onclick = () => { pending.type = pending.type===TYPE_IN?TYPE_OUT:TYPE_IN; renderType(); startCountdown(); };
+
+/* =================== PIN pad =================== */
+let pinBuf = '';
+function renderPin(){ [...$('pinDots').children].forEach((d,i)=>d.classList.toggle('on', i<pinBuf.length)); }
+['1','2','3','4','5','6','7','8','9','⌫','0','✓'].forEach(k=>{
+  const b = document.createElement('button'); b.textContent = k; if(k==='✓') b.className='btn-ok';
+  b.onclick = () => {
+    if(k==='⌫') pinBuf = pinBuf.slice(0,-1);
+    else if(k==='✓') checkPin();
+    else if(pinBuf.length < 6){ pinBuf += k; if(pinBuf.length === String(S.pin).length) checkPin(); }
+    renderPin();
+  };
+  $('keys').appendChild(b);
+});
+function checkPin(){
+  if(pinBuf === String(S.pin)){ $('pinpad').classList.remove('show'); pinBuf=''; renderPin(); openAdmin(); }
+  else { beep(false); pinBuf=''; renderPin(); $('pinDots').animate([{transform:'translateX(-8px)'},{transform:'translateX(8px)'},{transform:'none'}],{duration:250}); }
+}
+$('gear').onclick = () => { if(!(mode==='scan' || mode==='result') || $('admin').classList.contains('show')) return; mode='admin'; pinBuf=''; renderPin(); $('pinpad').classList.add('show'); };
+$('pinCancel').onclick = () => { $('pinpad').classList.remove('show'); mode='scan'; };
+
+/* =================== Admin =================== */
+function openAdmin(){ mode='admin'; $('admin').classList.add('show'); fillSettings(); renderList(); updateSyncInfo(); buildProg(0); lookupAdmin(); }
+function closeAdmin(){ stopEnroll(); $('admin').classList.remove('show'); mode='scan'; updateSyncInfo(); }
+$('adminClose').onclick = closeAdmin;
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on', x===b));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.id==='pane-'+b.dataset.tab));
+  if(b.dataset.tab!=='enroll') stopEnroll();
+});
+function msg(id, kind, text){ const el=$(id); el.className='msg show '+kind; el.textContent=text; }
+
+/* ---- Enroll engine (shared by HR panel and employee self-registration) ---- */
+let enroll = null;   // {id,name,self,samples,photo,lastAt,lastYaw}
+function buildProg(n){
+  const html = Array.from({length:SAMPLES_PER_EMPLOYEE},(_,i)=>`<span class="${i<n?'on':''}"></span>`).join('');
+  $('eProg').innerHTML = html; $('selfProg').innerHTML = html;
+}
+function enrollMsg(kind, text){
+  if(enroll && enroll.self){ const el=$('selfCapMsg'); el.className='msg show '+kind; el.textContent=text; }
+  else msg('eMsg', kind, text);
+}
+function startCapture(id, name, self){
+  enroll = {id, name, self, samples:[], photo:null, lastAt:0, lastYaw:null};
+  buildProg(0); enrollMsg('warn','بص للكاميرا... جاري التصوير');
+  mode = 'enroll';
+}
+function stopEnroll(){
+  const wasSelf = enroll && enroll.self;
+  enroll = null; $('eStart').disabled = false; buildProg(0); drawBox(null);
+  if(mode==='enroll') mode = wasSelf ? 'scan' : 'admin';
+}
+
+async function onEnrollFrame(r){
+  if(!enroll) return;
+  if(!r){ drawBox(null); return enrollMsg('warn','مش شايف وش — اقف قدام الكاميرا'); }
+  if(r.count > 1){ drawBox(r.best,'#f5a524'); return enrollMsg('warn','فيه أكتر من وش في الصورة — لازم تكون لوحدك'); }
+  const det = r.best;
+  if(det.detection.box.width < MIN_FACE_PX*1.2){ drawBox(det,'#f5a524'); return enrollMsg('warn','قرّب أكتر من الكاميرا'); }
+  if(det.detection.score < 0.6){ drawBox(det,'#f5a524'); return enrollMsg('warn','الإضاءة ضعيفة أو الوش مش واضح'); }
+  drawBox(det,'#17b26a');
+  const now = Date.now(), y = yaw(det.landmarks);
+  if(now - enroll.lastAt < 500) return;
+  if(enroll.samples.length && Math.abs(y - enroll.lastYaw) < 0.04 && now - enroll.lastAt < 1500) return;
+  enroll.samples.push(Array.from(det.descriptor)); enroll.lastAt = now; enroll.lastYaw = y;
+  if(!enroll.photo) enroll.photo = snapshot(det, 200);
+  buildProg(enroll.samples.length);
+  enrollMsg('warn',`تم ${enroll.samples.length} من ${SAMPLES_PER_EMPLOYEE} — حرّك راسك سنة بسيطة`);
+  if(enroll.samples.length >= SAMPLES_PER_EMPLOYEE) await finishEnroll();
+}
+
+async function finishEnroll(){
+  const e = enroll; mode = 'saving'; drawBox(null);
+  const fail = (text) => { enrollMsg('err', text); beep(false);
+    if(e.self){ setTimeout(()=>{ if(enroll===e) closeSelf(); }, 4000); mode='saving'; }
+    else { enroll=null; mode='admin'; $('eStart').disabled=false; buildProg(0); } };
+  const ds = e.samples.map(s=>new Float32Array(s));
+  let maxIntra = 0; for(let i=0;i<ds.length;i++) for(let j=i+1;j<ds.length;j++) maxIntra = Math.max(maxIntra, faceapi.euclideanDistance(ds[i],ds[j]));
+  if(maxIntra > 0.55) return fail('الصور مش متطابقة كفاية (ممكن حد تاني دخل في الصورة). جرّب تاني.');
+  // the same face must not be registered on another employee code
+  let clash = null;
+  for(const emp of employees){ if(emp.id===e.id) continue;
+    for(const d of emp.descriptors) for(const s of ds){ const dist = faceapi.euclideanDistance(s,d); if(dist < 0.4 && (!clash || dist < clash.dist)) clash = {emp, dist}; } }
+  if(clash){
+    if(e.self) return fail(`الوش ده متسجل قبل كده على كود تاني. كلّم الـ HR.`);
+    if(!confirm2(`الوش ده شبه جداً موظف متسجل: ${clash.emp.name} (كود ${clash.emp.id}). تكمّل التسجيل برضه؟`)) return fail('اتلغى التسجيل.');
+  }
+  enrollMsg('warn','جاري الحفظ...');
+  const rounded = e.samples.map(s=>s.map(v=>Math.round(v*1e4)/1e4));
+  try{
+    const j = await api('enroll', {self:e.self, employee:{id:e.id, name:e.name, descriptors:rounded, photo:e.photo, device:S.deviceName}});
+    const info = j.employee || {id:e.id, name:e.name, dept:''};
+    let emp = findEmp(info.id);
+    if(!emp){ emp = toEmp({id:info.id, name:info.name, dept:info.dept}); employees.push(emp); }
+    emp.name = info.name || emp.name; emp.descriptors = rounded.map(d=>new Float32Array(d));
+    await saveRosterCache();
+    beep(true); updateSyncInfo();
+    if(e.self){
+      enroll = null; closeSelf();
+      mode = 'result';
+      showResult('ok','✓', emp.name, 'تم تسجيل وشّك ✓ — بص للكاميرا تاني عشان تسجّل حضورك', 3500);
+    } else {
+      enroll = null; mode = 'admin';
+      msg('eMsg','ok',`✓ اتسجل وش ${emp.name} على كود ${emp.id}`);
+      $('eId').value=''; $('eName').value=''; lookupAdmin(); renderList();
+      $('eStart').disabled=false; buildProg(0);
+    }
+  }catch(err){ fail('ماتحفظش: '+err.message); }
+}
+
+/* ---- HR panel enrollment: code -> name from roster -> capture ---- */
+function lookupAdmin(){
+  const id = $('eId').value.trim(), f = $('eFound');
+  if(!id){ f.textContent=''; f.className='found'; $('eNameWrap').style.display='none'; return null; }
+  const emp = findEmp(id);
+  if(emp){
+    f.className='found ok'; f.textContent = `✓ ${emp.name}${emp.dept?' — '+emp.dept:''}  ·  ${emp.descriptors.length?'وشه متسجل (التسجيل هيستبدله)':'لسه ما سجلش وشه'}`;
+    $('eNameWrap').style.display='none';
+  } else {
+    f.className='found err'; f.textContent = 'الكود ده مش موجود في كشف الموظفين';
+    $('eNameWrap').style.display='';
+  }
+  return emp;
+}
+$('eId').oninput = lookupAdmin;
+$('eStart').onclick = () => {
+  const id = $('eId').value.trim();
+  if(!id) return msg('eMsg','err','اكتب كود الموظف الأول');
+  const emp = lookupAdmin();
+  const name = emp ? emp.name : $('eName').value.trim();
+  if(!name) return msg('eMsg','err','الكود مش في الكشف — اكتب الاسم عشان يتضاف، أو ضيفه في شيت Employees');
+  if(emp && emp.descriptors.length && !confirm2(`${emp.name} وشه متسجل قبل كده. تعيد تسجيله؟`)) return;
+  $('eStart').disabled = true;
+  startCapture(emp ? emp.id : id, name, false);
+};
+function confirm2(t){ return window.confirm(t); }
+$('eStop').onclick = () => { stopEnroll(); $('eMsg').className='msg'; };
+
+/* ---- Employee self-registration on the kiosk ---- */
+let selfCode = '', selfEmp = null, selfIdle = null;
+function selfStep(step){
+  ['code','confirm','capture'].forEach(s => $('self-'+s).style.display = s===step ? '' : 'none');
+  $('selfModal').classList.toggle('capture', step==='capture');
+}
+function selfTouch(){ clearTimeout(selfIdle); selfIdle = setTimeout(()=>{ if(!enroll) closeSelf(); }, 60000); }
+function openSelf(){
+  if(mode!=='scan') return;
+  mode = 'self'; selfCode=''; selfEmp=null; $('selfCode').innerHTML='&nbsp;'; $('selfMsg').className='msg';
+  selfStep('code'); $('selfModal').classList.add('show'); selfTouch();
+}
+function closeSelf(){
+  clearTimeout(selfIdle);
+  if(enroll && enroll.self) enroll = null;
+  $('selfModal').classList.remove('show','capture'); buildProg(0); drawBox(null);
+  if(mode==='self' || mode==='enroll' || mode==='saving') mode = 'scan';
+}
+async function submitSelfCode(){
+  const code = selfCode.trim(); if(!code) return;
+  let emp = findEmp(code);
+  if(!emp){ await loadEmployees(true); emp = findEmp(code); }  // maybe HR just added them
+  const m = $('selfMsg');
+  if(!emp){ beep(false); m.className='msg show err'; m.textContent='الكود ده مش موجود في كشف الموظفين — اتأكد منه أو كلّم الـ HR'; return; }
+  if(emp.descriptors.length){ beep(false); m.className='msg show warn'; m.textContent=`يا ${emp.name}، وشّك متسجل قبل كده ✓ — بص للكاميرا بس عشان تحضر. لو فيه مشكلة كلّم الـ HR.`; return; }
+  selfEmp = emp;
+  $('selfCId').textContent = emp.id; $('selfName').textContent = emp.name; $('selfDept').textContent = emp.dept || '';
+  selfStep('confirm');
+}
+['1','2','3','4','5','6','7','8','9','⌫','0','✓'].forEach(k=>{
+  const b = document.createElement('button'); b.textContent = k; if(k==='✓') b.className='btn-ok';
+  b.onclick = () => {
+    selfTouch(); $('selfMsg').className='msg';
+    if(k==='⌫') selfCode = selfCode.slice(0,-1);
+    else if(k==='✓') return submitSelfCode();
+    else if(selfCode.length < 12) selfCode += k;
+    $('selfCode').textContent = selfCode || ' ';
+  };
+  $('selfKeys').appendChild(b);
+});
+$('selfBtn').onclick = openSelf;
+$('selfYes').onclick = () => { if(!selfEmp) return; selfTouch(); $('selfCapName').textContent = selfEmp.name; selfStep('capture'); startCapture(selfEmp.id, selfEmp.name, true); };
+document.querySelectorAll('[data-selfcancel]').forEach(b => b.onclick = closeSelf);
+
+/* ---- List ---- */
+function renderList(){
+  const q = $('lSearch').value.trim().toLowerCase(), f = $('lFilter').value;
+  const list = employees
+    .filter(e=>!q || e.name.toLowerCase().includes(q) || e.id.includes(q))
+    .filter(e=> f==='all' || (f==='yes') === (e.descriptors.length>0))
+    .sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+  $('lCount').textContent = `${list.length} موظف · سجلوا وشهم ${enrolledCount()} من ${employees.length}`;
+  $('lItems').innerHTML = '';
+  list.slice(0,300).forEach(e=>{
+    const d = document.createElement('div'); d.className='emp';
+    d.innerHTML = `<div><b></b><small></small></div>`;
+    const b = d.querySelector('b'); b.textContent = e.name;
+    const badge = document.createElement('span'); badge.className = 'badge ' + (e.descriptors.length?'yes':'no'); badge.textContent = e.descriptors.length ? 'وشه متسجل' : 'لسه';
+    b.appendChild(badge);
+    d.querySelector('small').textContent = 'كود ' + e.id + (e.dept ? ' · ' + e.dept : '');
+    if(e.descriptors.length){
+      const del = document.createElement('button'); del.className='btn-red'; del.textContent='مسح الوش';
+      del.onclick = async () => { if(!confirm2(`مسح بصمة وش ${e.name}؟ (هيقدر يسجل تاني بالكود)`)) return;
+        try{ await api('reset',{id:e.id}); e.descriptors = []; await saveRosterCache(); renderList(); updateSyncInfo(); }
+        catch(err){ alert('ماتمسحش: '+err.message); } };
+      d.appendChild(del);
+    }
+    $('lItems').appendChild(d);
+  });
+}
+$('lSearch').oninput = renderList;
+$('lFilter').onchange = renderList;
+
+
+/* ---- Sync ---- */
+$('sNow').onclick = async () => { msg('sMsg','warn','جاري المزامنة...'); await flushQueue(); await loadToday();
+  queue.length ? msg('sMsg','err','لسه فيه تسجيلات ماترفعتش — اتأكد من النت والإعدادات') : msg('sMsg','ok','✓ كله اترفع'); };
+$('sReload').onclick = async () => { msg('sMsg','warn','جاري التحميل...'); const ok = await loadEmployees(true); updateSyncInfo(); renderList();
+  ok ? msg('sMsg','ok',`✓ اتحمّل ${employees.length} موظف من الكشف (${enrolledCount()} سجلوا وشهم)`) : msg('sMsg','err','ماقدرتش أوصل للشيت — شغال بالنسخة المحفوظة على التابلت'); };
+
+/* ---- Settings ---- */
+function fillSettings(){
+  $('stUrl').value=S.scriptUrl; $('stToken').value=S.token; $('stDevice').value=S.deviceName; $('stPin').value='';
+  $('stThreshold').value=Number(S.threshold).toFixed(2); $('stConfirm').value=String(S.confirmSec); $('stCooldown').value=S.cooldownMin;
+  $('stLive').checked=!!S.liveness; $('stPhoto').checked=!!S.savePhoto; $('stSelf').checked=!!S.selfEnroll;
+}
+function readSettings(){
+  const n = Object.assign({}, S, { scriptUrl:$('stUrl').value.trim(), token:$('stToken').value.trim(), deviceName:$('stDevice').value.trim()||DEFAULTS.deviceName,
+    threshold:Number($('stThreshold').value), confirmSec:Number($('stConfirm').value), cooldownMin:Math.max(0,Number($('stCooldown').value)||0),
+    liveness:$('stLive').checked, savePhoto:$('stPhoto').checked, selfEnroll:$('stSelf').checked });
+  const pin = $('stPin').value.trim();
+  if(pin){ if(!/^\d{4,6}$/.test(pin)) throw new Error('رمز الإدارة لازم يكون من 4 لـ 6 أرقام'); n.pin = pin; }
+  return n;
+}
+$('stSave').onclick = async () => {
+  try{ const n = readSettings(); const urlChanged = n.scriptUrl!==S.scriptUrl || n.token!==S.token; S = n; saveSettings(S);
+    $('deviceLabel').textContent = S.deviceName; msg('stMsg','ok','✓ اتحفظت الإعدادات'); updateSyncInfo();
+    if(urlChanged){ await loadEmployees(true); await loadToday(); renderList(); updateSyncInfo(); flushQueue(); } }
+  catch(e){ msg('stMsg','err', e.message); }
+};
+$('stTest').onclick = async () => {
+  const old = S; try{ S = readSettings(); msg('stMsg','warn','جاري الاختبار...'); const j = await api('ping');
+    msg('stMsg','ok',`✓ متصل بالشيت: ${j.sheet} — ${j.employees} موظف في الكشف، ${j.enrolled} سجلوا وشهم`); }
+  catch(e){ msg('stMsg','err','✗ '+e.message); } finally{ S = old; }
+};
+
+/* =================== Boot =================== */
+async function boot(){
+  const sub = $('loadingSub');
+  try{
+    if(!window.isSecureContext) throw new Error('الصفحة لازم تتفتح من رابط https عشان الكاميرا تشتغل');
+    sub.textContent = 'تحميل نماذج التعرّف على الوجه...';
+    await faceapi.tf.ready();
+    const loadModels = (uri) => Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(uri),
+      faceapi.nets.faceLandmark68Net.loadFromUri(uri),
+      faceapi.nets.faceRecognitionNet.loadFromUri(uri),
+    ]);
+    try{ await loadModels('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model'); }
+    catch(e){ console.warn('CDN models failed, trying local copy', e); await loadModels('models'); }
+    sub.textContent = 'تشغيل الكاميرا...';
+    await startCamera();
+    sub.textContent = 'تحميل بيانات الموظفين...';
+    queue = (await DB.get('queue')) || [];
+    await loadEmployees(true);
+    await loadToday();
+    $('deviceLabel').textContent = S.deviceName;
+    // warm-up pass so the first real employee isn't slow
+    try{ await faceapi.detectAllFaces(video, detOpts()).withFaceLandmarks().withFaceDescriptors(); }catch(e){}
+    $('loading').style.display='none';
+    mode = 'scan'; updateSyncInfo(); loop();
+    if(!S.scriptUrl){ mode='admin'; openAdmin(); document.querySelector('.tabs button[data-tab=settings]').click();
+      msg('stMsg','warn','أول مرة؟ حط رابط الـ Apps Script وكلمة السر، وغيّر رمز الإدارة (الافتراضي 123456).'); }
+    setInterval(flushQueue, 20000);
+    setInterval(async()=>{ await loadEmployees(true); await loadToday(); updateSyncInfo(); }, 5*60000);
+    window.addEventListener('online', flushQueue);
+  }catch(e){
+    console.error(e);
+    $('loadingText').textContent = 'فيه مشكلة في التشغيل';
+    sub.textContent = (e && e.name==='NotAllowedError') ? 'لازم تسمح للمتصفح يستخدم الكاميرا (من إعدادات الموقع في Chrome).' : (e.message||String(e));
+    document.querySelector('#loading .spinner').style.display='none';
+  }
+}
+// keep screen awake where supported
+async function wake(){ try{ if('wakeLock' in navigator) await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') wake(); });
+document.addEventListener('click', ()=>{ if(!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{}); }, {once:true});
+wake(); boot();
+</script>
+</body>
+</html>
