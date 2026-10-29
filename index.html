@@ -323,7 +323,10 @@ const DB = (() => {
 let employees = [];            // roster: [{id,name,dept,descriptors:[Float32Array]}] (descriptors empty = face not registered yet)
 let queue = [];                // pending punch records
 let todayPunches = {};         // id -> {type, ts}  (latest punch today)
-let todayKey = dayKey(new Date());
+// The work day starts at 05:00 so a night-shift check-out at 02:00 still belongs to the shift that started the evening before.
+const DAY_START_HOUR = 5;
+function workKey(d){ return dayKey(new Date(d.getTime() - DAY_START_HOUR*3600e3)); }
+let todayKey = workKey(new Date());
 let mode = 'loading';          // scan | confirm | result | enroll | admin
 let lastSync = null, online = false;
 
@@ -339,7 +342,7 @@ function tick(){
   const d = new Date();
   $('clock').textContent = d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   $('date').textContent = d.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  const k = dayKey(d); if(k !== todayKey){ todayKey = k; todayPunches = {}; DB.set('today',{day:todayKey,map:{}}); }
+  const k = workKey(d); if(k !== todayKey){ todayKey = k; todayPunches = {}; DB.set('today',{day:todayKey,map:{}}); }
 }
 setInterval(tick, 1000); tick();
 
